@@ -1,4 +1,4 @@
-import requests, bs4, sys, string, re
+import requests, bs4, string, re
 from random import randint, choice
 
 def getLink(letter, number):
