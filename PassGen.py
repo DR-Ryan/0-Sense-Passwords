@@ -1,5 +1,34 @@
-import requests, bs4, string, re
+import requests, bs4, sys, string, re, threading, time
 from random import randint, choice
+
+password = ''
+
+def threader():
+    global password
+    edit_lock = threading.Lock()
+    letter = choice(string.ascii_lowercase)
+
+    file = open("Webster Dictionary", "r")
+
+    for f in file:
+        if 'd' in f:
+            pageCount = int(f.split(':')[1])
+    file.close()
+
+    number = randint(1, pageCount+1)
+    wordLine = randint(0, 300)
+    if number != 1:
+        soup = getLink(letter, str(number))
+
+    # If it ends up on the last page their's a chance wordLine won't exist
+    # and returns a nonetype
+    while True:
+        try:
+            with edit_lock:
+                password += pickWord(soup, wordLine)
+        except TypeError:
+            continue
+        break
 
 def getLink(letter, number):
     res = requests.get('https://www.merriam-webster.com/browse/dictionary/' + letter + '/' + number)
@@ -29,7 +58,7 @@ def characterReplace(password, allowed):
     return password
 
 def main():
-    password = ''
+    start = time.time()
     try:
         length = int(input("How many words long should password be? "))
         allowed = input("Are special characters allowed? (y or n) ")
@@ -40,30 +69,12 @@ def main():
         allowed = 'n'
 
     for i in range(length):
-        letter = choice(string.ascii_lowercase)
-        number = '1'
-        soup = getLink(letter, number)
-
-        # Webster page list displayed as "page 1 of n"
-        pageCount = soup.find(class_='counters').text.split(' ')[3]
-        pageCount = int(pageCount)
-
-        # The reasoning for doing a link pull twice is because every letter
-        # does not have the same amount of pages
-        number = randint(1, pageCount+1)
-        wordLine = randint(0, 300)
-        if number != 1:
-            soup = getLink(letter, str(number))
-
-        # If it ends up on the last page their's a chance wordLine won't exist
-        # and returns a nonetype
-        while True:
-            try:
-                password += pickWord(soup, wordLine)
-            except TypeError:
-                continue
-            break
+        t = threading.Thread(target = threader)
+        t.daemon = True
+        t.start()
+        t.join()
 
     print("Password:", characterReplace(password, allowed))
+    print('Entire job took:', time.time()-start)
 if __name__ == '__main__':
     main()
